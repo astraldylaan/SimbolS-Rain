@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Lluvia Matrix Avanzada</title>
+<style>
+  body, html { margin:0; padding:0; height:100%; overflow:hidden; background:black; font-family:monospace; }
+  canvas { display:block; }
+  #controls {
+    position: fixed; top:10px; left:10px; background:rgba(0,0,0,0.7); padding:10px; border-radius:8px;
+    color:white; z-index:100; width:200px;
+  }
+  #controls label { font-size:12px; display:block; margin-top:5px; }
+  #controls input, #controls select { margin:2px 0; width:100%; font-size:12px; padding:2px 4px; box-sizing:border-box; }
+  #controls input[type="text"] { height:20px; }
+  #controls input[type="color"], #controls select, #controls input[type="range"] { height:25px; }
+  #shareBtn {
+    position:absolute; bottom:10px; left:10px; font-size:12px; padding:3px 5px;
+  }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <label>Conjunto 1:</label>
+  <input type="text" id="charsInput1" value="1,0">
+
+  <label>Conjunto 2:</label>
+  <input type="text" id="charsInput2" value="@,#">
+
+  <label>Color:</label>
+  <input type="color" id="colorInput" value="#00FF00">
+
+  <label>Modo:</label>
+  <select id="modeSelect">
+    <option value="normal">Normal</option>
+    <option value="rainbow">Rainbow</option>
+  </select>
+
+  <label>Velocidad (1-100): <span id="speedVal">50</span></label>
+  <input type="range" id="speedRange" min="1" max="100" value="50">
+
+  <label>Cantidad (1-100): <span id="densityVal">50</span></label>
+  <input type="range" id="densityRange" min="1" max="100" value="50">
+</div>
+
+<canvas id="matrixCanvas"></canvas>
+<button id="shareBtn">Compartir configuración</button>
+
+<script>
+const canvas = document.getElementById('matrixCanvas');
+const ctx = canvas.getContext('2d');
+
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+const fontSize = 20;
+
+// Variables configurables
+let chars1 = ['1','0'];
+let chars2 = ['@','#'];
+let color = '#00FF00';
+let mode = 'normal';
+let speed = 50;       // velocidad default
+let density = 50;     // cantidad default
+
+let columns = Math.floor(width / fontSize);
+let drops = Array(columns).fill(0);
+
+// Leer parámetros de la URL
+function getParams() {
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('chars1')) chars1 = params.get('chars1').split(',').map(c=>c.trim()).filter(c=>c);
+  if(params.get('chars2')) chars2 = params.get('chars2').split(',').map(c=>c.trim()).filter(c=>c);
+  if(params.get('color')) color = params.get('color');
+  if(params.get('mode')) mode = params.get('mode');
+  if(params.get('speed')) speed = parseInt(params.get('speed'));
+  if(params.get('density')) density = parseInt(params.get('density'));
+}
+getParams();
+
+// Actualizar inputs con los valores iniciales
+document.getElementById('charsInput1').value = chars1.join(',');
+document.getElementById('charsInput2').value = chars2.join(',');
+document.getElementById('colorInput').value = color;
+document.getElementById('modeSelect').value = mode;
+document.getElementById('speedRange').value = speed;
+document.getElementById('speedVal').innerText = speed;
+document.getElementById('densityRange').value = density;
+document.getElementById('densityVal').innerText = density;
+
+// Rainbow
+function rainbowColor(i,total){return `hsl(${(i*360/total)%360},100%,50%)`;}
+
+// Ajustar columnas según densidad
+function updateColumns() {
+  columns = Math.floor(width / fontSize * (density/100));
+  drops = Array(columns).fill(0);
+}
+
+// Dibujar
+function draw() {
+  ctx.fillStyle='rgba(0,0,0,0.05)';
+  ctx.fillRect(0,0,width,height);
+  ctx.font=fontSize+'px monospace';
+
+  for(let i=0;i<columns;i++){
+    const chars = Math.random()>0.5 ? chars1 : chars2;
+    const text = chars[Math.floor(Math.random()*chars.length)];
+    ctx.fillStyle = mode==='rainbow' ? rainbowColor(drops[i],height/fontSize) : color;
+    ctx.fillText(text,i*fontSize,drops[i]*fontSize);
+
+    if(drops[i]*fontSize>height && Math.random()>0.975) drops[i]=0;
+    drops[i]++;
+  }
+}
+
+// Inputs
+document.getElementById('charsInput1').addEventListener('input', e => { chars1=e.target.value.split(',').map(c=>c.trim()).filter(c=>c); });
+document.getElementById('charsInput2').addEventListener('input', e => { chars2=e.target.value.split(',').map(c=>c.trim()).filter(c=>c); });
+document.getElementById('colorInput').addEventListener('input', e => { color=e.target.value; });
+document.getElementById('modeSelect').addEventListener('change', e => { mode=e.target.value; });
+document.getElementById('speedRange').addEventListener('input', e => { 
+  speed=parseInt(e.target.value); 
+  document.getElementById('speedVal').innerText = speed; 
+});
+document.getElementById('densityRange').addEventListener('input', e => { 
+  density=parseInt(e.target.value); 
+  document.getElementById('densityVal').innerText = density; 
+  updateColumns();
+});
+
+// Ajuste de pantalla
+window.addEventListener('resize', ()=>{
+  width=canvas.width=window.innerWidth;
+  height=canvas.height=window.innerHeight;
+  updateColumns();
+});
+
+// Compartir configuración
+function generateLink() {
+  const link = `${window.location.origin}${window.location.pathname}?chars1=${encodeURIComponent(chars1.join(','))}&chars2=${encodeURIComponent(chars2.join(','))}&color=${encodeURIComponent(color)}&mode=${encodeURIComponent(mode)}&speed=${speed}&density=${density}`;
+  prompt("Copia este enlace para compartirlo:", link);
+}
+document.getElementById('shareBtn').onclick = generateLink;
+
+// Loop principal con control de velocidad
+function loop() {
+  draw();
+  setTimeout(loop, 101 - speed); // mientras más speed, más rápido
+}
+updateColumns();
+loop();
+
+</script>
+
+</body>
+</html>
